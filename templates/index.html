@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenDevOps — Build Optimizer Dashboard</title>
+    <meta name="description" content="Real-time comparison dashboard for optimized vs unoptimized CI/CD pipeline performance">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* ── Reset & Base ─────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary:    #0f1117;
+            --bg-secondary:  #1a1d27;
+            --bg-card:       #1e2130;
+            --bg-card-hover: #252839;
+            --border:        #2a2d3a;
+            --text-primary:  #e4e6f0;
+            --text-secondary:#8b8fa3;
+            --text-muted:    #5a5e72;
+            --green:         #10b981;
+            --green-dim:     rgba(16,185,129,0.15);
+            --blue:          #3b82f6;
+            --blue-dim:      rgba(59,130,246,0.15);
+            --red:           #ef4444;
+            --amber:         #f59e0b;
+            --purple:        #8b5cf6;
+            --radius:        12px;
+            --radius-sm:     8px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ── Header ───────────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .header-left { display: flex; align-items: center; gap: 0.75rem; }
+        .header-logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--green), #059669);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
+        .header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+        .header h1 span { color: var(--green); }
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .live-indicator {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.75rem; color: var(--text-secondary);
+        }
+        .live-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+        }
+
+        /* ── Layout ───────────────────────────────────────── */
+        .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+
+        /* ── Summary Cards ────────────────────────────────── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+        .card:hover { border-color: var(--text-muted); transform: translateY(-2px); }
+        .card-icon {
+            width: 40px; height: 40px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; margin-bottom: 0.75rem;
+        }
+        .card-icon.green  { background: var(--green-dim); }
+        .card-icon.blue   { background: var(--blue-dim); }
+        .card-icon.purple { background: rgba(139,92,246,0.15); }
+        .card-icon.amber  { background: rgba(245,158,11,0.15); }
+        .card-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; font-weight: 500; }
+        .card-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; }
+        .card-value.green { color: var(--green); }
+        .card-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        /* ── Charts ───────────────────────────────────────── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+        }
+        .chart-card h3 {
+            font-size: 0.9rem; font-weight: 600;
+            margin-bottom: 1rem; color: var(--text-primary);
+        }
+        .chart-wrap { position: relative; height: 280px; }
+
+        /* ── Builds Table ─────────────────────────────────── */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .table-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .table-header h3 { font-size: 0.9rem; font-weight: 600; }
+        .table-filters { display: flex; gap: 0.5rem; }
+        .filter-btn {
+            padding: 0.35rem 0.75rem; border-radius: 6px;
+            font-size: 0.75rem; font-weight: 500;
+            border: 1px solid var(--border); background: transparent;
+            color: var(--text-secondary); cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { border-color: var(--text-muted); color: var(--text-primary); }
+        .filter-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            text-align: left; padding: 0.65rem 1rem;
+            font-size: 0.7rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 0.65rem 1rem; font-size: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:hover td { background: var(--bg-card-hover); }
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem;
+            border-radius: 4px; font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-optimized { background: var(--green-dim); color: var(--green); }
+        .badge-unoptimized { background: var(--blue-dim); color: var(--blue); }
+        .badge-success { background: var(--green-dim); color: var(--green); }
+        .badge-failure { background: rgba(239,68,68,0.15); color: var(--red); }
+        .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+        .text-green { color: var(--green); }
+        .text-muted { color: var(--text-muted); }
+
+        /* ── Empty State ──────────────────────────────────── */
+        .empty-state {
+            text-align: center; padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-state h3 { color: var(--text-secondary); margin-bottom: 0.5rem; }
+
+        /* ── Responsive ───────────────────────────────────── */
+        @media (max-width: 900px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo">🌱</div>
+            <h1><span>Green</span>DevOps — Build Optimizer</h1>
+        </div>
+        <div class="header-right">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                <span>Live — refreshes every 10s</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="summary-cards">
+            <div class="card">
+                <div class="card-icon green">⚡</div>
+                <div class="card-label">Avg Build Time Saved</div>
+                <div class="card-value green" id="stat-time-saved">—</div>
+                <div class="card-sub" id="stat-time-detail">Loading...</div>
+            </div>
+            <div class="card">
+                <div class="card-icon blue">🧪</div>
+                <div class="card-label">Total Tests Skipped</div>
+                <div class="card-value" id="stat-tests-skipped">—</div>
+                <div class="card-sub" id="stat-tests-detail">Redundant test executions avoided</div>
+            </div>
+            <div class="card">
+                <div class="card-icon purple">🌱</div>
+                <div class="card-label">Estimated Energy Saved</div>
+                <div class="card-value" id="stat-energy">—</div>
+                <div class="card-sub">Based on ~65W CI server TDP</div>
+            </div>
+            <div class="card">
+                <div class="card-icon amber">📊</div>
+                <div class="card-label">Total Builds Tracked</div>
+                <div class="card-value" id="stat-total-builds">—</div>
+                <div class="card-sub" id="stat-builds-detail">Across both pipelines</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>Build Duration Comparison (seconds)</h3>
+                <div class="chart-wrap"><canvas id="durationChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>Tests Executed Per Build</h3>
+                <div class="chart-wrap"><canvas id="testsChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Stage Breakdown Chart -->
+        <div class="charts-grid" style="grid-template-columns: 1fr;">
+            <div class="chart-card">
+                <h3>Average Stage Duration Breakdown (seconds)</h3>
+                <div class="chart-wrap"><canvas id="stageChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Builds Table -->
+        <div class="table-card" style="margin-top: 1rem;">
+            <div class="table-header">
+                <h3>Recent Builds</h3>
+                <div class="table-filters">
+                    <button class="filter-btn active" data-filter="all" onclick="filterBuilds('all', this)">All</button>
+                    <button class="filter-btn" data-filter="optimized" onclick="filterBuilds('optimized', this)">Optimized</button>
+                    <button class="filter-btn" data-filter="unoptimized" onclick="filterBuilds('unoptimized', this)">Unoptimized</button>
+                </div>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Build</th>
+                            <th>Pipeline</th>
+                            <th>Status</th>
+                            <th>Build (s)</th>
+                            <th>Test (s)</th>
+                            <th>Total (s)</th>
+                            <th>Tests Run</th>
+                            <th>Modules</th>
+                            <th>Commit</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="builds-tbody">
+                        <tr><td colspan="10" class="text-muted" style="text-align:center;padding:2rem;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ── State ─────────────────────────────────────────────────
+    let allBuilds = [];
+    let currentFilter = 'all';
+    let durationChart = null;
+    let testsChart = null;
+    let stageChart = null;
+
+    // ── Fetch Data ────────────────────────────────────────────
+    async function fetchData() {
+        try {
+            const [buildsRes, statsRes, compRes] = await Promise.all([
+                fetch('/api/builds?limit=50'),
+                fetch('/api/stats'),
+                fetch('/api/comparison?limit=20'),
+            ]);
+            const builds = await buildsRes.json();
+            const stats = await statsRes.json();
+            const comparison = await compRes.json();
+
+            allBuilds = builds;
+            updateSummaryCards(stats);
+            updateDurationChart(comparison);
+            updateTestsChart(comparison);
+            updateStageChart(stats, comparison);
+            renderBuildsTable();
+        } catch (err) {
+            console.error('Dashboard fetch error:', err);
+        }
+    }
+
+    // ── Summary Cards ─────────────────────────────────────────
+    function updateSummaryCards(stats) {
+        document.getElementById('stat-time-saved').textContent =
+            stats.time_saved_pct ? `${stats.time_saved_pct}%` : '—';
+
+        const optAvg = stats.optimized?.avg_total_s;
+        const unoptAvg = stats.unoptimized?.avg_total_s;
+        document.getElementById('stat-time-detail').textContent =
+            (optAvg && unoptAvg)
+                ? `Optimized: ${optAvg.toFixed(1)}s vs Unoptimized: ${unoptAvg.toFixed(1)}s`
+                : 'Waiting for data from both pipelines';
+
+        document.getElementById('stat-tests-skipped').textContent =
+            stats.total_tests_skipped ?? '—';
+
+        const energy = stats.energy_saved_kwh;
+        document.getElementById('stat-energy').textContent =
+            energy ? `${energy} kWh` : '—';
+
+        document.getElementById('stat-total-builds').textContent =
+            stats.total_builds ?? '—';
+
+        const optBuilds = stats.optimized?.total_builds ?? 0;
+        const unoptBuilds = stats.unoptimized?.total_builds ?? 0;
+        document.getElementById('stat-builds-detail').textContent =
+            `${optBuilds} optimized, ${unoptBuilds} unoptimized`;
+    }
+
+    // ── Duration Chart ────────────────────────────────────────
+    function updateDurationChart(comparison) {
+        const ctx = document.getElementById('durationChart').getContext('2d');
+        const opt = (comparison.optimized || []).reverse();
+        const unopt = (comparison.unoptimized || []).reverse();
+
+        const maxLen = Math.max(opt.length, unopt.length);
+        const labels = Array.from({ length: maxLen }, (_, i) => `Build ${i + 1}`);
+
+        // Use build numbers as labels if available
+        const allNums = [];
+        opt.forEach(b => allNums.push(`#${b.build_number}`));
+        unopt.forEach(b => { if (!allNums.includes(`#${b.build_number}`)) allNums.push(`#${b.build_number}`); });
+
+        if (durationChart) durationChart.destroy();
+        durationChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Unoptimized',
+                        data: unopt.map(b => b.total_duration_s || 0),
+                        backgroundColor: 'rgba(59,130,246,0.7)',
+                        borderColor: 'rgba(59,130,246,1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Optimized',
+                        data: opt.map(b => b.total_duration_s || 0),
+                        backgroundColor: 'rgba(16,185,129,0.7)',
+                        borderColor: 'rgba(16,185,129,1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                scales: {
+                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
+                    y: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } }
+                }
+            }
+        });
+    }
+
+    // ── Tests Chart ───────────────────────────────────────────
+    function updateTestsChart(comparison) {
+        const ctx = document.getElementById('testsChart').getContext('2d');
+        const opt = (comparison.optimized || []).reverse();
+        const unopt = (comparison.unoptimized || []).reverse();
+
+        const maxLen = Math.max(opt.length, unopt.length);
+        const labels = Array.from({ length: maxLen }, (_, i) => `Build ${i + 1}`);
+
+        if (testsChart) testsChart.destroy();
+        testsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Unoptimized',
+                        data: unopt.map(b => b.tests_executed || 0),
+                        borderColor: 'rgba(59,130,246,1)',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        fill: true, tension: 0.3, pointRadius: 4,
+                    },
+                    {
+                        label: 'Optimized',
+                        data: opt.map(b => b.tests_executed || 0),
+                        borderColor: 'rgba(16,185,129,1)',
+                        backgroundColor: 'rgba(16,185,129,0.1)',
+                        fill: true, tension: 0.3, pointRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                scales: {
+                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
+                    y: { ticks: { color: '#5a5e72', stepSize: 1 }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Tests', color: '#5a5e72' }, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    // ── Stage Breakdown Chart ─────────────────────────────────
+    function updateStageChart(stats, comparison) {
+        const ctx = document.getElementById('stageChart').getContext('2d');
+
+        const opt = stats.optimized || {};
+        const unopt = stats.unoptimized || {};
+
+        const stages = ['Build', 'Test', 'Optimizer'];
+        const optData = [
+            opt.avg_build_s || 0,
+            opt.avg_test_s || 0,
+            0,  // Will calculate from comparison data
+        ];
+        const unoptData = [
+            unopt.avg_build_s || 0,
+            unopt.avg_test_s || 0,
+            0,
+        ];
+
+        // Calculate avg optimizer duration from comparison data
+        const optBuilds = comparison.optimized || [];
+        if (optBuilds.length > 0) {
+            const totalOpt = optBuilds.reduce((s, b) => s + (b.optimizer_duration_s || 0), 0);
+            optData[2] = totalOpt / optBuilds.length;
+        }
+
+        if (stageChart) stageChart.destroy();
+        stageChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: stages,
+                datasets: [
+                    {
+                        label: 'Unoptimized',
+                        data: unoptData,
+                        backgroundColor: 'rgba(59,130,246,0.7)',
+                        borderColor: 'rgba(59,130,246,1)',
+                        borderWidth: 1, borderRadius: 4,
+                    },
+                    {
+                        label: 'Optimized',
+                        data: optData,
+                        backgroundColor: 'rgba(16,185,129,0.7)',
+                        borderColor: 'rgba(16,185,129,1)',
+                        borderWidth: 1, borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                scales: {
+                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } },
+                    y: { ticks: { color: '#8b8fa3', font: { size: 13 } }, grid: { color: '#2a2d3a' } }
+                }
+            }
+        });
+    }
+
+    // ── Builds Table ──────────────────────────────────────────
+    function renderBuildsTable() {
+        const tbody = document.getElementById('builds-tbody');
+        let filtered = allBuilds;
+        if (currentFilter !== 'all') {
+            filtered = allBuilds.filter(b => b.pipeline_type === currentFilter);
+        }
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+                <tr><td colspan="10">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <h3>No builds yet</h3>
+                        <p>Run a pipeline to see data here</p>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(b => `
+            <tr>
+                <td><strong>#${b.build_number}</strong></td>
+                <td><span class="badge badge-${b.pipeline_type}">${b.pipeline_type}</span></td>
+                <td><span class="badge badge-${(b.status || '').toLowerCase()}">${b.status || '—'}</span></td>
+                <td class="mono">${b.build_duration_s != null ? b.build_duration_s.toFixed(1) : '—'}</td>
+                <td class="mono">${b.test_duration_s != null ? b.test_duration_s.toFixed(1) : '—'}</td>
+                <td class="mono ${b.pipeline_type === 'optimized' ? 'text-green' : ''}">${b.total_duration_s != null ? b.total_duration_s.toFixed(1) : '—'}</td>
+                <td class="mono">${b.tests_executed ?? '—'}</td>
+                <td class="mono">${b.affected_modules || b.modules_tested || '—'}</td>
+                <td class="mono" title="${b.commit_message || ''}">${b.commit_sha ? b.commit_sha.substring(0, 7) : '—'}</td>
+                <td class="text-muted">${b.created_at ? new Date(b.created_at).toLocaleTimeString() : '—'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function filterBuilds(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderBuildsTable();
+    }
+
+    // ── Init + Auto-refresh ───────────────────────────────────
+    fetchData();
+    setInterval(fetchData, 10000);
+    </script>
+</body>
+</html>

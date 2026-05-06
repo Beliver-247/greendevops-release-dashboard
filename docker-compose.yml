@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  dashboard:
+    image: beliver247/greendevops-dashboard:latest
+    container_name: greendevops-dashboard
+    restart: unless-stopped
+    ports:
+      - "5002:5050"
+    volumes:
+      - dashboard_data:/app/data
+    environment:
+      - DASHBOARD_DB=/app/data/dashboard.db
+
+volumes:
+  dashboard_data:
