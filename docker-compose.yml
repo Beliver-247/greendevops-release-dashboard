@@ -6,7 +6,7 @@ services:
     container_name: greendevops-dashboard
     restart: unless-stopped
     ports:
-      - "5002:5050"
+      - "5003:5050"
     volumes:
       - dashboard_data:/app/data
     environment:
