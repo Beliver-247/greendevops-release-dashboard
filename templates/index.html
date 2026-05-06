@@ -133,6 +133,9 @@
         .card-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; font-weight: 500; }
         .card-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; }
         .card-value.green { color: var(--green); }
+        .card-value.blue { color: var(--blue); }
+        .card-value.purple { color: var(--purple); }
+        .card-value.amber { color: var(--amber); }
         .card-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
 
         /* ── Charts ───────────────────────────────────────── */
@@ -246,19 +249,19 @@
             <div class="card">
                 <div class="card-icon blue">🧪</div>
                 <div class="card-label">Total Tests Skipped</div>
-                <div class="card-value" id="stat-tests-skipped">—</div>
+                <div class="card-value blue" id="stat-tests-skipped">—</div>
                 <div class="card-sub" id="stat-tests-detail">Redundant test executions avoided</div>
             </div>
             <div class="card">
                 <div class="card-icon purple">🌱</div>
                 <div class="card-label">Estimated Energy Saved</div>
-                <div class="card-value" id="stat-energy">—</div>
+                <div class="card-value purple" id="stat-energy">—</div>
                 <div class="card-sub">Based on ~65W CI server TDP</div>
             </div>
             <div class="card">
                 <div class="card-icon amber">📊</div>
                 <div class="card-label">Total Builds Tracked</div>
-                <div class="card-value" id="stat-total-builds">—</div>
+                <div class="card-value amber" id="stat-total-builds">—</div>
                 <div class="card-sub" id="stat-builds-detail">Across both pipelines</div>
             </div>
         </div>
