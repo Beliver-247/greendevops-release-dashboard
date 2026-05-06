@@ -132,11 +132,12 @@
         .card-icon.amber  { background: rgba(245,158,11,0.15); }
         .card-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; font-weight: 500; }
         .card-value { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.03em; }
-        .card-value.green { color: var(--green); }
-        .card-value.blue { color: var(--blue); }
-        .card-value.purple { color: var(--purple); }
-        .card-value.amber { color: var(--amber); }
         .card-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+
+        .card.card-green { background: linear-gradient(135deg, var(--green-dim) 0%, var(--bg-card) 100%); border-color: var(--green-dim); }
+        .card.card-blue { background: linear-gradient(135deg, var(--blue-dim) 0%, var(--bg-card) 100%); border-color: var(--blue-dim); }
+        .card.card-purple { background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, var(--bg-card) 100%); border-color: rgba(139,92,246,0.15); }
+        .card.card-amber { background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, var(--bg-card) 100%); border-color: rgba(245,158,11,0.15); }
 
         /* ── Charts ───────────────────────────────────────── */
         .charts-grid {
@@ -240,28 +241,28 @@
     <div class="container">
         <!-- Summary Cards -->
         <div class="summary-grid" id="summary-cards">
-            <div class="card">
+            <div class="card card-green">
                 <div class="card-icon green">⚡</div>
                 <div class="card-label">Avg Build Time Saved</div>
-                <div class="card-value green" id="stat-time-saved">—</div>
+                <div class="card-value" id="stat-time-saved">—</div>
                 <div class="card-sub" id="stat-time-detail">Loading...</div>
             </div>
-            <div class="card">
+            <div class="card card-blue">
                 <div class="card-icon blue">🧪</div>
                 <div class="card-label">Total Tests Skipped</div>
-                <div class="card-value blue" id="stat-tests-skipped">—</div>
+                <div class="card-value" id="stat-tests-skipped">—</div>
                 <div class="card-sub" id="stat-tests-detail">Redundant test executions avoided</div>
             </div>
-            <div class="card">
+            <div class="card card-purple">
                 <div class="card-icon purple">🌱</div>
                 <div class="card-label">Estimated Energy Saved</div>
-                <div class="card-value purple" id="stat-energy">—</div>
+                <div class="card-value" id="stat-energy">—</div>
                 <div class="card-sub">Based on ~65W CI server TDP</div>
             </div>
-            <div class="card">
+            <div class="card card-amber">
                 <div class="card-icon amber">📊</div>
                 <div class="card-label">Total Builds Tracked</div>
-                <div class="card-value amber" id="stat-total-builds">—</div>
+                <div class="card-value" id="stat-total-builds">—</div>
                 <div class="card-sub" id="stat-builds-detail">Across both pipelines</div>
             </div>
         </div>
