@@ -29,6 +29,26 @@
             --purple:        #8b5cf6;
             --radius:        12px;
             --radius-sm:     8px;
+            --header-bg:     linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+        }
+
+        [data-theme="light"] {
+            --bg-primary:    #f8fafc;
+            --bg-secondary:  #f1f5f9;
+            --bg-card:       #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --border:        #e2e8f0;
+            --text-primary:  #0f172a;
+            --text-secondary:#475569;
+            --text-muted:    #64748b;
+            --green:         #059669;
+            --green-dim:     rgba(16,185,129,0.15);
+            --blue:          #2563eb;
+            --blue-dim:      rgba(59,130,246,0.15);
+            --red:           #ef4444;
+            --amber:         #d97706;
+            --purple:        #7c3aed;
+            --header-bg:     #ffffff;
         }
 
         body {
@@ -41,7 +61,7 @@
 
         /* ── Header ───────────────────────────────────────── */
         .header {
-            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            background: var(--header-bg);
             border-bottom: 1px solid var(--border);
             padding: 1.25rem 2rem;
             display: flex;
@@ -62,7 +82,13 @@
         }
         .header h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
         .header h1 span { color: var(--green); }
-        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .header-right { display: flex; align-items: center; gap: 1.5rem; }
+        .theme-toggle {
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 1.25rem; cursor: pointer; display: flex; align-items: center;
+            padding: 0.25rem; border-radius: var(--radius-sm); transition: 0.2s;
+        }
+        .theme-toggle:hover { color: var(--text-primary); background: var(--bg-card-hover); }
         .live-indicator {
             display: flex; align-items: center; gap: 0.4rem;
             font-size: 0.75rem; color: var(--text-secondary);
@@ -200,6 +226,7 @@
             <h1><span>Green</span>DevOps — Build Optimizer</h1>
         </div>
         <div class="header-right">
+            <button class="theme-toggle" id="theme-btn" title="Toggle Theme" onclick="toggleTheme()">☀️</button>
             <div class="live-indicator">
                 <div class="live-dot"></div>
                 <span>Live — refreshes every 10s</span>
@@ -298,6 +325,31 @@
     let testsChart = null;
     let stageChart = null;
 
+    // ── Theme ─────────────────────────────────────────────────
+    function toggleTheme() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const newTheme = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        document.getElementById('theme-btn').textContent = newTheme === 'light' ? '🌙' : '☀️';
+        if (durationChart) updateDurationChart({ optimized: [], unoptimized: [] }, true);
+    }
+    
+    // Init theme
+    if (localStorage.getItem('theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.getElementById('theme-btn').textContent = '🌙';
+    }
+
+    function getThemeColors() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        return {
+            grid: isLight ? '#e2e8f0' : '#2a2d3a',
+            ticks: isLight ? '#64748b' : '#5a5e72',
+            legend: isLight ? '#475569' : '#8b8fa3'
+        };
+    }
+
     // ── Fetch Data ────────────────────────────────────────────
     async function fetchData() {
         try {
@@ -350,10 +402,10 @@
     }
 
     // ── Duration Chart ────────────────────────────────────────
-    function updateDurationChart(comparison) {
-        const ctx = document.getElementById('durationChart').getContext('2d');
-        const opt = (comparison.optimized || []).reverse();
-        const unopt = (comparison.unoptimized || []).reverse();
+    function updateDurationChart(comparison, forceRecreate = false) {
+        if (!comparison.optimized && !comparison.unoptimized && !forceRecreate) return;
+        const opt = (comparison.optimized || allBuilds.filter(b => b.pipeline_type === 'optimized')).slice(0, 20).reverse();
+        const unopt = (comparison.unoptimized || allBuilds.filter(b => b.pipeline_type === 'unoptimized')).slice(0, 20).reverse();
 
         const maxLen = Math.max(opt.length, unopt.length);
         const labels = Array.from({ length: maxLen }, (_, i) => `Build ${i + 1}`);
@@ -363,12 +415,16 @@
         opt.forEach(b => allNums.push(`#${b.build_number}`));
         unopt.forEach(b => { if (!allNums.includes(`#${b.build_number}`)) allNums.push(`#${b.build_number}`); });
 
-        if (durationChart) {
+        const tc = getThemeColors();
+
+        if (durationChart && !forceRecreate) {
             durationChart.data.labels = labels;
             durationChart.data.datasets[0].data = unopt.map(b => b.total_duration_s || 0);
             durationChart.data.datasets[1].data = opt.map(b => b.total_duration_s || 0);
             durationChart.update('none');
         } else {
+            if (durationChart) durationChart.destroy();
+            const ctx = document.getElementById('durationChart').getContext('2d');
             durationChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -395,10 +451,10 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    plugins: { legend: { labels: { color: tc.legend, font: { family: 'Inter' } } } },
                     scales: {
-                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
-                        y: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } }
+                        x: { ticks: { color: tc.ticks }, grid: { color: tc.grid } },
+                        y: { ticks: { color: tc.ticks }, grid: { color: tc.grid }, title: { display: true, text: 'Seconds', color: tc.ticks } }
                     }
                 }
             });
@@ -406,20 +462,24 @@
     }
 
     // ── Tests Chart ───────────────────────────────────────────
-    function updateTestsChart(comparison) {
-        const ctx = document.getElementById('testsChart').getContext('2d');
-        const opt = (comparison.optimized || []).reverse();
-        const unopt = (comparison.unoptimized || []).reverse();
+    function updateTestsChart(comparison, forceRecreate = false) {
+        if (!comparison.optimized && !comparison.unoptimized && !forceRecreate) return;
+        const opt = (comparison.optimized || allBuilds.filter(b => b.pipeline_type === 'optimized')).slice(0, 20).reverse();
+        const unopt = (comparison.unoptimized || allBuilds.filter(b => b.pipeline_type === 'unoptimized')).slice(0, 20).reverse();
 
         const maxLen = Math.max(opt.length, unopt.length);
         const labels = Array.from({ length: maxLen }, (_, i) => `Build ${i + 1}`);
 
-        if (testsChart) {
+        const tc = getThemeColors();
+
+        if (testsChart && !forceRecreate) {
             testsChart.data.labels = labels;
             testsChart.data.datasets[0].data = unopt.map(b => b.tests_executed || 0);
             testsChart.data.datasets[1].data = opt.map(b => b.tests_executed || 0);
             testsChart.update('none');
         } else {
+            if (testsChart) testsChart.destroy();
+            const ctx = document.getElementById('testsChart').getContext('2d');
             testsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -444,10 +504,10 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    plugins: { legend: { labels: { color: tc.legend, font: { family: 'Inter' } } } },
                     scales: {
-                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
-                        y: { ticks: { color: '#5a5e72', stepSize: 1 }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Tests', color: '#5a5e72' }, beginAtZero: true }
+                        x: { ticks: { color: tc.ticks }, grid: { color: tc.grid } },
+                        y: { ticks: { color: tc.ticks, stepSize: 1 }, grid: { color: tc.grid }, title: { display: true, text: 'Tests', color: tc.ticks }, beginAtZero: true }
                     }
                 }
             });
@@ -455,8 +515,10 @@
     }
 
     // ── Stage Breakdown Chart ─────────────────────────────────
-    function updateStageChart(stats, comparison) {
-        const ctx = document.getElementById('stageChart').getContext('2d');
+    function updateStageChart(stats, comparison, forceRecreate = false) {
+        if (!stats && !forceRecreate) return;
+        stats = stats || { optimized: {}, unoptimized: {} };
+        comparison = comparison || { optimized: [], unoptimized: [] };
 
         const opt = stats.optimized || {};
         const unopt = stats.unoptimized || {};
@@ -480,11 +542,15 @@
             optData[2] = totalOpt / optBuilds.length;
         }
 
-        if (stageChart) {
+        const tc = getThemeColors();
+
+        if (stageChart && !forceRecreate) {
             stageChart.data.datasets[0].data = unoptData;
             stageChart.data.datasets[1].data = optData;
             stageChart.update('none');
         } else {
+            if (stageChart) stageChart.destroy();
+            const ctx = document.getElementById('stageChart').getContext('2d');
             stageChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -510,10 +576,10 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     indexAxis: 'y',
-                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    plugins: { legend: { labels: { color: tc.legend, font: { family: 'Inter' } } } },
                     scales: {
-                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } },
-                        y: { ticks: { color: '#8b8fa3', font: { size: 13 } }, grid: { color: '#2a2d3a' } }
+                        x: { ticks: { color: tc.ticks }, grid: { color: tc.grid }, title: { display: true, text: 'Seconds', color: tc.ticks } },
+                        y: { ticks: { color: tc.legend, font: { size: 13 } }, grid: { color: tc.grid } }
                     }
                 }
             });
@@ -561,6 +627,20 @@
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderBuildsTable();
+    }
+
+    // When theme toggles, we need to force recreate the charts so Chart.js picks up new axis/grid colors
+    function toggleTheme() {
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const newTheme = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        document.getElementById('theme-btn').textContent = newTheme === 'light' ? '🌙' : '☀️';
+        
+        // Force recreate charts
+        updateDurationChart({}, true);
+        updateTestsChart({}, true);
+        updateStageChart(null, null, true);
     }
 
     // ── Init + Auto-refresh ───────────────────────────────────
