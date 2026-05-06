@@ -363,40 +363,46 @@
         opt.forEach(b => allNums.push(`#${b.build_number}`));
         unopt.forEach(b => { if (!allNums.includes(`#${b.build_number}`)) allNums.push(`#${b.build_number}`); });
 
-        if (durationChart) durationChart.destroy();
-        durationChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Unoptimized',
-                        data: unopt.map(b => b.total_duration_s || 0),
-                        backgroundColor: 'rgba(59,130,246,0.7)',
-                        borderColor: 'rgba(59,130,246,1)',
-                        borderWidth: 1,
-                        borderRadius: 4,
-                    },
-                    {
-                        label: 'Optimized',
-                        data: opt.map(b => b.total_duration_s || 0),
-                        backgroundColor: 'rgba(16,185,129,0.7)',
-                        borderColor: 'rgba(16,185,129,1)',
-                        borderWidth: 1,
-                        borderRadius: 4,
+        if (durationChart) {
+            durationChart.data.labels = labels;
+            durationChart.data.datasets[0].data = unopt.map(b => b.total_duration_s || 0);
+            durationChart.data.datasets[1].data = opt.map(b => b.total_duration_s || 0);
+            durationChart.update('none');
+        } else {
+            durationChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Unoptimized',
+                            data: unopt.map(b => b.total_duration_s || 0),
+                            backgroundColor: 'rgba(59,130,246,0.7)',
+                            borderColor: 'rgba(59,130,246,1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        },
+                        {
+                            label: 'Optimized',
+                            data: opt.map(b => b.total_duration_s || 0),
+                            backgroundColor: 'rgba(16,185,129,0.7)',
+                            borderColor: 'rgba(16,185,129,1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    scales: {
+                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
+                        y: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
-                scales: {
-                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
-                    y: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } }
                 }
-            }
-        });
+            });
+        }
     }
 
     // ── Tests Chart ───────────────────────────────────────────
@@ -408,38 +414,44 @@
         const maxLen = Math.max(opt.length, unopt.length);
         const labels = Array.from({ length: maxLen }, (_, i) => `Build ${i + 1}`);
 
-        if (testsChart) testsChart.destroy();
-        testsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Unoptimized',
-                        data: unopt.map(b => b.tests_executed || 0),
-                        borderColor: 'rgba(59,130,246,1)',
-                        backgroundColor: 'rgba(59,130,246,0.1)',
-                        fill: true, tension: 0.3, pointRadius: 4,
-                    },
-                    {
-                        label: 'Optimized',
-                        data: opt.map(b => b.tests_executed || 0),
-                        borderColor: 'rgba(16,185,129,1)',
-                        backgroundColor: 'rgba(16,185,129,0.1)',
-                        fill: true, tension: 0.3, pointRadius: 4,
+        if (testsChart) {
+            testsChart.data.labels = labels;
+            testsChart.data.datasets[0].data = unopt.map(b => b.tests_executed || 0);
+            testsChart.data.datasets[1].data = opt.map(b => b.tests_executed || 0);
+            testsChart.update('none');
+        } else {
+            testsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Unoptimized',
+                            data: unopt.map(b => b.tests_executed || 0),
+                            borderColor: 'rgba(59,130,246,1)',
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: true, tension: 0.3, pointRadius: 4,
+                        },
+                        {
+                            label: 'Optimized',
+                            data: opt.map(b => b.tests_executed || 0),
+                            borderColor: 'rgba(16,185,129,1)',
+                            backgroundColor: 'rgba(16,185,129,0.1)',
+                            fill: true, tension: 0.3, pointRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    scales: {
+                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
+                        y: { ticks: { color: '#5a5e72', stepSize: 1 }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Tests', color: '#5a5e72' }, beginAtZero: true }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
-                scales: {
-                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' } },
-                    y: { ticks: { color: '#5a5e72', stepSize: 1 }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Tests', color: '#5a5e72' }, beginAtZero: true }
                 }
-            }
-        });
+            });
+        }
     }
 
     // ── Stage Breakdown Chart ─────────────────────────────────
@@ -468,39 +480,44 @@
             optData[2] = totalOpt / optBuilds.length;
         }
 
-        if (stageChart) stageChart.destroy();
-        stageChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: stages,
-                datasets: [
-                    {
-                        label: 'Unoptimized',
-                        data: unoptData,
-                        backgroundColor: 'rgba(59,130,246,0.7)',
-                        borderColor: 'rgba(59,130,246,1)',
-                        borderWidth: 1, borderRadius: 4,
-                    },
-                    {
-                        label: 'Optimized',
-                        data: optData,
-                        backgroundColor: 'rgba(16,185,129,0.7)',
-                        borderColor: 'rgba(16,185,129,1)',
-                        borderWidth: 1, borderRadius: 4,
+        if (stageChart) {
+            stageChart.data.datasets[0].data = unoptData;
+            stageChart.data.datasets[1].data = optData;
+            stageChart.update('none');
+        } else {
+            stageChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stages,
+                    datasets: [
+                        {
+                            label: 'Unoptimized',
+                            data: unoptData,
+                            backgroundColor: 'rgba(59,130,246,0.7)',
+                            borderColor: 'rgba(59,130,246,1)',
+                            borderWidth: 1, borderRadius: 4,
+                        },
+                        {
+                            label: 'Optimized',
+                            data: optData,
+                            backgroundColor: 'rgba(16,185,129,0.7)',
+                            borderColor: 'rgba(16,185,129,1)',
+                            borderWidth: 1, borderRadius: 4,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
+                    scales: {
+                        x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } },
+                        y: { ticks: { color: '#8b8fa3', font: { size: 13 } }, grid: { color: '#2a2d3a' } }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: { legend: { labels: { color: '#8b8fa3', font: { family: 'Inter' } } } },
-                scales: {
-                    x: { ticks: { color: '#5a5e72' }, grid: { color: '#2a2d3a' }, title: { display: true, text: 'Seconds', color: '#5a5e72' } },
-                    y: { ticks: { color: '#8b8fa3', font: { size: 13 } }, grid: { color: '#2a2d3a' } }
                 }
-            }
-        });
+            });
+        }
     }
 
     // ── Builds Table ──────────────────────────────────────────
