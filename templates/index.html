@@ -455,7 +455,23 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: tc.legend, font: { family: 'Inter' } } } },
+                    plugins: { 
+                        legend: { labels: { color: tc.legend, font: { family: 'Inter' } } },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const datasetIndex = context.datasetIndex;
+                                    const index = context.dataIndex;
+                                    const build = datasetIndex === 0 ? unopt[index] : opt[index];
+                                    if (!build) return '';
+                                    if (build.pipeline_type === 'optimized') {
+                                        return build.affected_modules ? `Modules Built: ${build.affected_modules}` : 'Modules Built: None (Skipped)';
+                                    }
+                                    return `Modules Built: All`;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         x: { ticks: { color: tc.ticks }, grid: { color: tc.grid } },
                         y: { ticks: { color: tc.ticks }, grid: { color: tc.grid }, title: { display: true, text: 'Seconds', color: tc.ticks } }
@@ -508,7 +524,23 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: tc.legend, font: { family: 'Inter' } } } },
+                    plugins: { 
+                        legend: { labels: { color: tc.legend, font: { family: 'Inter' } } },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const datasetIndex = context.datasetIndex;
+                                    const index = context.dataIndex;
+                                    const build = datasetIndex === 0 ? unopt[index] : opt[index];
+                                    if (!build) return '';
+                                    if (build.pipeline_type === 'optimized') {
+                                        return build.affected_modules ? `Modules Built: ${build.affected_modules}` : 'Modules Built: None (Skipped)';
+                                    }
+                                    return `Modules Built: All`;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         x: { ticks: { color: tc.ticks }, grid: { color: tc.grid } },
                         y: { ticks: { color: tc.ticks, stepSize: 1 }, grid: { color: tc.grid }, title: { display: true, text: 'Tests', color: tc.ticks }, beginAtZero: true }
