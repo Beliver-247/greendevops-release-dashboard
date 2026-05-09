@@ -48,6 +48,7 @@ def init_db():
             tests_executed      INTEGER DEFAULT 0,
             tests_skipped       INTEGER DEFAULT 0,
             affected_modules    TEXT,
+            module_details      TEXT,
             build_command       TEXT,
             test_command        TEXT,
             created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -93,7 +94,7 @@ def record_build():
                 docker_duration_s, deploy_duration_s, optimizer_duration_s,
                 modules_built, modules_tested,
                 tests_executed, tests_skipped,
-                affected_modules, build_command, test_command
+                affected_modules, module_details, build_command, test_command
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -101,7 +102,7 @@ def record_build():
                 :docker_duration_s, :deploy_duration_s, :optimizer_duration_s,
                 :modules_built, :modules_tested,
                 :tests_executed, :tests_skipped,
-                :affected_modules, :build_command, :test_command
+                :affected_modules, :module_details, :build_command, :test_command
             )
         """, {
             "job_name":             data["job_name"],
@@ -121,6 +122,7 @@ def record_build():
             "tests_executed":       data.get("tests_executed", 0),
             "tests_skipped":        data.get("tests_skipped", 0),
             "affected_modules":     data.get("affected_modules"),
+            "module_details":       data.get("module_details"),
             "build_command":        data.get("build_command"),
             "test_command":         data.get("test_command"),
         })
@@ -145,6 +147,7 @@ def record_build():
                 tests_executed      = COALESCE(:tests_executed, tests_executed),
                 tests_skipped       = COALESCE(:tests_skipped, tests_skipped),
                 affected_modules    = COALESCE(:affected_modules, affected_modules),
+                module_details      = COALESCE(:module_details, module_details),
                 build_command       = COALESCE(:build_command, build_command),
                 test_command        = COALESCE(:test_command, test_command)
             WHERE job_name = :job_name AND build_number = :build_number
@@ -166,6 +169,7 @@ def record_build():
             "tests_executed":       data.get("tests_executed"),
             "tests_skipped":        data.get("tests_skipped"),
             "affected_modules":     data.get("affected_modules"),
+            "module_details":       data.get("module_details"),
             "build_command":        data.get("build_command"),
             "test_command":         data.get("test_command"),
         })

@@ -610,8 +610,70 @@
             return;
         }
 
-        tbody.innerHTML = filtered.map(b => `
-            <tr>
+        tbody.innerHTML = filtered.map(b => {
+            let detailsHtml = '';
+            if (b.module_details) {
+                try {
+                    const mods = typeof b.module_details === 'string' ? JSON.parse(b.module_details) : b.module_details;
+                    const rebuilt = [];
+                    const skipped = [];
+                    const runTests = [];
+                    const skippedTests = [];
+                    
+                    Object.entries(mods).forEach(([modName, data]) => {
+                        if (data.status === 'run') {
+                            rebuilt.push(modName);
+                            if (data.run > 0 || (data.run === 0 && data.skipped === 0)) {
+                                runTests.push(`<li><strong>${modName}:</strong> ${data.run} tests</li>`);
+                            }
+                        } else {
+                            skipped.push(modName);
+                            if (data.skipped > 0) {
+                                skippedTests.push(`<li><strong>${modName}:</strong> ${data.skipped} tests avoided</li>`);
+                            }
+                        }
+                    });
+                    
+                    detailsHtml = `
+                    <tr id="details-${b.build_number}" style="display:none; background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+                        <td colspan="10" style="padding: 1.5rem 2rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                                <div>
+                                    <h4 style="margin-bottom:0.75rem; font-size:0.85rem; color:var(--text-primary);">📦 Modules (Build & Test)</h4>
+                                    <div style="margin-bottom: 0.5rem; display:flex; align-items:center; gap:0.5rem;">
+                                        <span class="text-muted" style="font-size:0.75rem; width: 60px;">Executed:</span>
+                                        <div>${rebuilt.length ? rebuilt.map(m => `<span class="badge badge-success" style="margin-right:0.3rem;">${m}</span>`).join('') : '<span class="text-muted" style="font-size:0.75rem;">None</span>'}</div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <span class="text-muted" style="font-size:0.75rem; width: 60px;">Skipped:</span>
+                                        <div>${skipped.length ? skipped.map(m => `<span class="badge badge-unoptimized" style="margin-right:0.3rem; opacity: 0.8;">${m}</span>`).join('') : '<span class="text-muted" style="font-size:0.75rem;">None</span>'}</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 style="margin-bottom:0.75rem; font-size:0.85rem; color:var(--text-primary);">🧪 Test Impact Analysis</h4>
+                                    <div style="display: flex; gap: 3rem;">
+                                        <div>
+                                            <span class="text-muted" style="font-size:0.75rem;">Tests Executed (${b.tests_executed || 0})</span>
+                                            <ul style="list-style:none; font-size:0.8rem; margin-top:0.4rem; color:var(--text-secondary); line-height:1.6;">
+                                                ${runTests.length ? runTests.join('') : '<li>None</li>'}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <span class="text-muted" style="font-size:0.75rem; color:var(--green);">Tests Avoided (${b.tests_skipped || 0})</span>
+                                            <ul style="list-style:none; font-size:0.8rem; margin-top:0.4rem; color:var(--green); line-height:1.6;">
+                                                ${skippedTests.length ? skippedTests.join('') : '<li>None</li>'}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
+                } catch(e) { console.error("Error parsing module details", e); }
+            }
+
+            return `
+            <tr style="cursor:pointer;" onclick="document.getElementById('details-${b.build_number}')?.style.setProperty('display', document.getElementById('details-${b.build_number}').style.display === 'none' ? 'table-row' : 'none')" title="Click to expand module details">
                 <td><strong>#${b.build_number}</strong></td>
                 <td><span class="badge badge-${b.pipeline_type}">${b.pipeline_type}</span></td>
                 <td><span class="badge badge-${(b.status || '').toLowerCase()}">${b.status || '—'}</span></td>
@@ -623,7 +685,8 @@
                 <td class="mono" title="${b.commit_message || ''}">${b.commit_sha ? b.commit_sha.substring(0, 7) : '—'}</td>
                 <td class="text-muted">${b.created_at ? new Date(b.created_at).toLocaleTimeString() : '—'}</td>
             </tr>
-        `).join('');
+            ${detailsHtml}
+        `}).join('');
     }
 
     function filterBuilds(filter, btn) {
