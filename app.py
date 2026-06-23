@@ -55,6 +55,19 @@ def init_db():
             UNIQUE(job_name, build_number)
         );
     """)
+    
+    # Safely add new ML/Carbon columns to existing database
+    for col_def in [
+        "carbon_intensity REAL",
+        "green_probability REAL",
+        "scheduling_action TEXT",
+        "scheduling_engine TEXT"
+    ]:
+        try:
+            conn.execute(f"ALTER TABLE builds ADD COLUMN {col_def}")
+        except sqlite3.OperationalError:
+            pass # Column already exists
+
     conn.commit()
     conn.close()
 
@@ -94,7 +107,8 @@ def record_build():
                 docker_duration_s, deploy_duration_s, optimizer_duration_s,
                 modules_built, modules_tested,
                 tests_executed, tests_skipped,
-                affected_modules, module_details, build_command, test_command
+                affected_modules, module_details, build_command, test_command,
+                carbon_intensity, green_probability, scheduling_action, scheduling_engine
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -102,7 +116,8 @@ def record_build():
                 :docker_duration_s, :deploy_duration_s, :optimizer_duration_s,
                 :modules_built, :modules_tested,
                 :tests_executed, :tests_skipped,
-                :affected_modules, :module_details, :build_command, :test_command
+                :affected_modules, :module_details, :build_command, :test_command,
+                :carbon_intensity, :green_probability, :scheduling_action, :scheduling_engine
             )
         """, {
             "job_name":             data["job_name"],
@@ -125,6 +140,10 @@ def record_build():
             "module_details":       data.get("module_details"),
             "build_command":        data.get("build_command"),
             "test_command":         data.get("test_command"),
+            "carbon_intensity":     data.get("carbon_intensity"),
+            "green_probability":    data.get("green_probability"),
+            "scheduling_action":    data.get("scheduling_action"),
+            "scheduling_engine":    data.get("scheduling_engine"),
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
@@ -149,7 +168,11 @@ def record_build():
                 affected_modules    = COALESCE(:affected_modules, affected_modules),
                 module_details      = COALESCE(:module_details, module_details),
                 build_command       = COALESCE(:build_command, build_command),
-                test_command        = COALESCE(:test_command, test_command)
+                test_command        = COALESCE(:test_command, test_command),
+                carbon_intensity    = COALESCE(:carbon_intensity, carbon_intensity),
+                green_probability   = COALESCE(:green_probability, green_probability),
+                scheduling_action   = COALESCE(:scheduling_action, scheduling_action),
+                scheduling_engine   = COALESCE(:scheduling_engine, scheduling_engine)
             WHERE job_name = :job_name AND build_number = :build_number
         """, {
             "job_name":             data["job_name"],
@@ -172,6 +195,10 @@ def record_build():
             "module_details":       data.get("module_details"),
             "build_command":        data.get("build_command"),
             "test_command":         data.get("test_command"),
+            "carbon_intensity":     data.get("carbon_intensity"),
+            "green_probability":    data.get("green_probability"),
+            "scheduling_action":    data.get("scheduling_action"),
+            "scheduling_engine":    data.get("scheduling_engine"),
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build updated"}), 200
