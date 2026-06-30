@@ -39,37 +39,15 @@ pipeline {
             }
         }
 
-        stage('Deploy to Server') {
+        stage('Deploy Locally (Jenkins Server)') {
             steps {
-                sshagent(credentials: ["${SSH_CREDENTIALS}"]) {
-                    // 1. Create directory on server
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} \
-                            ${REMOTE_USER}@${REMOTE_HOST} \
-                            'mkdir -p /home/${REMOTE_USER}/greendevops-dashboard'
-                    """
-        
-                    // 2. Copy docker-compose
-                    sh """
-                        scp -o StrictHostKeyChecking=no -P ${REMOTE_PORT} \
-                            docker-compose.yml \
-                            ${REMOTE_USER}@${REMOTE_HOST}:/home/${REMOTE_USER}/greendevops-dashboard/docker-compose.yml
-                    """
-        
-                    // 3. Pull and restart
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -p ${REMOTE_PORT} \
-                            ${REMOTE_USER}@${REMOTE_HOST} '
-                                set -e
-                                cd /home/${REMOTE_USER}/greendevops-dashboard
-                                docker pull ${DOCKER_IMAGE}:latest
-                                docker-compose down || true
-                                docker-compose up -d
-                                sleep 5
-                                docker-compose ps
-                            '
-                    """
-                }
+                echo "Deploying dashboard locally on the Jenkins server..."
+                sh """
+                    docker-compose down || true
+                    docker-compose up -d
+                    sleep 5
+                    docker-compose ps
+                """
             }
         }
     }
