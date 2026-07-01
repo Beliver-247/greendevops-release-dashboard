@@ -3,7 +3,7 @@ version: '3.8'
 services:
   dashboard:
     image: beliver247/greendevops-dashboard:latest
-    container_name: greendevops-dashboard
+    container_name: release-dashboard
     restart: unless-stopped
     ports:
       - "5003:5050"

@@ -43,10 +43,11 @@ pipeline {
             steps {
                 echo "Deploying dashboard locally on the Jenkins server..."
                 sh """
-                    docker compose down || true
-                    docker compose up -d
+                    docker rm -f greendevops-dashboard release-dashboard || true
+                    docker compose -p release-dashboard down || true
+                    docker compose -p release-dashboard up -d
                     sleep 5
-                    docker compose ps
+                    docker compose -p release-dashboard ps
                 """
             }
         }
