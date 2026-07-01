@@ -8,9 +8,9 @@ services:
     ports:
       - "5003:5050"
     volumes:
-      - dashboard_data:/app/data
+      - dashboard_data_v2:/app/data
     environment:
       - DASHBOARD_DB=/app/data/dashboard.db
 
 volumes:
-  dashboard_data:
+  dashboard_data_v2:
