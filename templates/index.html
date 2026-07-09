@@ -675,7 +675,40 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { labels: { color: tc.legend, font: { family: 'Inter' } } },
+                            legend: { 
+                                labels: { 
+                                    color: tc.legend, 
+                                    font: { family: 'Inter' },
+                                    generateLabels: function(chart) {
+                                        return [
+                                            {
+                                                text: 'Unoptimized',
+                                                fillStyle: 'rgba(59,130,246,0.7)',
+                                                strokeStyle: 'rgba(59,130,246,1)',
+                                                lineWidth: 1,
+                                                datasetIndex: 0,
+                                                hidden: !chart.isDatasetVisible(0)
+                                            },
+                                            {
+                                                text: 'Optimized',
+                                                fillStyle: 'rgba(16,185,129,0.7)',
+                                                strokeStyle: 'rgba(16,185,129,1)',
+                                                lineWidth: 1,
+                                                datasetIndex: 1,
+                                                hidden: !chart.isDatasetVisible(1)
+                                            },
+                                            {
+                                                text: 'Rescheduled',
+                                                fillStyle: 'rgba(245,158,11,0.7)',
+                                                strokeStyle: 'rgba(245,158,11,1)',
+                                                lineWidth: 1,
+                                                datasetIndex: 1,
+                                                hidden: !chart.isDatasetVisible(1)
+                                            }
+                                        ];
+                                    }
+                                } 
+                            },
                             tooltip: {
                                 callbacks: {
                                     afterLabel: function (context) {
