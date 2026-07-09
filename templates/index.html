@@ -642,6 +642,8 @@
                 durationChart.data.labels = labels;
                 durationChart.data.datasets[0].data = unopt.map(b => b.total_duration_s || 0);
                 durationChart.data.datasets[1].data = opt.map(b => b.total_duration_s || 0);
+                durationChart.data.datasets[1].backgroundColor = opt.map(b => b.status === 'RESCHEDULED' ? 'rgba(245,158,11,0.7)' : 'rgba(16,185,129,0.7)');
+                durationChart.data.datasets[1].borderColor = opt.map(b => b.status === 'RESCHEDULED' ? 'rgba(245,158,11,1)' : 'rgba(16,185,129,1)');
                 durationChart.update('none');
             } else {
                 if (durationChart) durationChart.destroy();
@@ -662,8 +664,8 @@
                             {
                                 label: 'Optimized',
                                 data: opt.map(b => b.total_duration_s || 0),
-                                backgroundColor: 'rgba(16,185,129,0.7)',
-                                borderColor: 'rgba(16,185,129,1)',
+                                backgroundColor: opt.map(b => b.status === 'RESCHEDULED' ? 'rgba(245,158,11,0.7)' : 'rgba(16,185,129,0.7)'),
+                                borderColor: opt.map(b => b.status === 'RESCHEDULED' ? 'rgba(245,158,11,1)' : 'rgba(16,185,129,1)'),
                                 borderWidth: 1,
                                 borderRadius: 4,
                             }
