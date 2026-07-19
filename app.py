@@ -61,7 +61,9 @@ def init_db():
         "carbon_intensity REAL",
         "green_probability REAL",
         "scheduling_action TEXT",
-        "scheduling_engine TEXT"
+        "scheduling_engine TEXT",
+        "carbon_history TEXT",
+        "carbon_forecast TEXT",
     ]:
         try:
             conn.execute(f"ALTER TABLE builds ADD COLUMN {col_def}")
@@ -108,7 +110,8 @@ def record_build():
                 modules_built, modules_tested,
                 tests_executed, tests_skipped,
                 affected_modules, module_details, build_command, test_command,
-                carbon_intensity, green_probability, scheduling_action, scheduling_engine
+                carbon_intensity, green_probability, scheduling_action, scheduling_engine,
+                carbon_history, carbon_forecast
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -117,7 +120,8 @@ def record_build():
                 :modules_built, :modules_tested,
                 :tests_executed, :tests_skipped,
                 :affected_modules, :module_details, :build_command, :test_command,
-                :carbon_intensity, :green_probability, :scheduling_action, :scheduling_engine
+                :carbon_intensity, :green_probability, :scheduling_action, :scheduling_engine,
+                :carbon_history, :carbon_forecast
             )
         """, {
             "job_name":             data["job_name"],
@@ -144,6 +148,8 @@ def record_build():
             "green_probability":    data.get("green_probability"),
             "scheduling_action":    data.get("scheduling_action"),
             "scheduling_engine":    data.get("scheduling_engine"),
+            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") else None,
+            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") else None,
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
@@ -172,7 +178,9 @@ def record_build():
                 carbon_intensity    = COALESCE(:carbon_intensity, carbon_intensity),
                 green_probability   = COALESCE(:green_probability, green_probability),
                 scheduling_action   = COALESCE(:scheduling_action, scheduling_action),
-                scheduling_engine   = COALESCE(:scheduling_engine, scheduling_engine)
+                scheduling_engine   = COALESCE(:scheduling_engine, scheduling_engine),
+                carbon_history      = COALESCE(:carbon_history, carbon_history),
+                carbon_forecast     = COALESCE(:carbon_forecast, carbon_forecast)
             WHERE job_name = :job_name AND build_number = :build_number
         """, {
             "job_name":             data["job_name"],
@@ -199,11 +207,49 @@ def record_build():
             "green_probability":    data.get("green_probability"),
             "scheduling_action":    data.get("scheduling_action"),
             "scheduling_engine":    data.get("scheduling_engine"),
+            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") else None,
+            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") else None,
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build updated"}), 200
     finally:
         conn.close()
+
+
+@app.route("/api/carbon", methods=["GET"])
+def carbon_data():
+    """Return carbon intensity history and forecast from the most recent optimized build."""
+    conn = get_db()
+    row = conn.execute("""
+        SELECT carbon_history, carbon_forecast, carbon_intensity,
+               green_probability, scheduling_action, scheduling_engine,
+               created_at, build_number
+        FROM builds
+        WHERE pipeline_type = 'optimized'
+          AND carbon_history IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 1
+    """).fetchone()
+    conn.close()
+
+    if not row:
+        return jsonify({"history": [], "forecast": [], "meta": {}})
+
+    history = json.loads(row["carbon_history"]) if row["carbon_history"] else []
+    forecast = json.loads(row["carbon_forecast"]) if row["carbon_forecast"] else []
+
+    return jsonify({
+        "history": history,
+        "forecast": forecast,
+        "meta": {
+            "carbon_intensity": row["carbon_intensity"],
+            "green_probability": row["green_probability"],
+            "scheduling_action": row["scheduling_action"],
+            "scheduling_engine": row["scheduling_engine"],
+            "build_number": row["build_number"],
+            "recorded_at": row["created_at"],
+        },
+    })
 
 
 @app.route("/api/builds", methods=["GET"])

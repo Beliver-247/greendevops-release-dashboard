@@ -432,6 +432,132 @@
                 padding: 1rem;
             }
         }
+
+        /* ── Tab Navigation ───────────────────────────────── */
+        .tab-nav {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.6rem 1.2rem;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+            margin-bottom: -1px;
+        }
+
+        .tab-btn:hover { color: var(--text-primary); }
+
+        .tab-btn.active {
+            color: var(--green);
+            border-bottom-color: var(--green);
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Carbon Insights ──────────────────────────────── */
+        .carbon-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .carbon-intensity-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            margin-top: 0.75rem;
+            overflow: hidden;
+        }
+
+        .carbon-intensity-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s ease, background 0.6s ease;
+        }
+
+        .carbon-chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .carbon-chart-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .carbon-chart-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .carbon-chart-header p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        .carbon-legend {
+            display: flex;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .carbon-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-line {
+            width: 24px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .legend-line.dashed {
+            background: repeating-linear-gradient(
+                90deg,
+                var(--amber) 0, var(--amber) 6px,
+                transparent 6px, transparent 10px
+            );
+        }
+
+        .carbon-chart-wrap {
+            position: relative;
+            height: 340px;
+        }
+
+        .carbon-empty {
+            text-align: center;
+            padding: 5rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .carbon-empty .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .carbon-empty h3 { color: var(--text-secondary); margin-bottom: 0.4rem; }
+        .carbon-empty p  { font-size: 0.85rem; }
     </style>
 </head>
 
@@ -452,6 +578,16 @@
     </header>
 
     <div class="container">
+        <!-- Tab Navigation -->
+        <nav class="tab-nav" role="tablist">
+            <button id="tab-btn-overview" class="tab-btn active" role="tab"
+                onclick="switchTab('overview')">📊 Pipeline Overview</button>
+            <button id="tab-btn-carbon" class="tab-btn" role="tab"
+                onclick="switchTab('carbon')">🌿 Carbon Insights</button>
+        </nav>
+
+        <!-- ══ TAB: Pipeline Overview ══════════════════════════ -->
+        <div id="tab-overview" class="tab-panel active">
         <!-- Summary Cards -->
         <div class="summary-grid" id="summary-cards">
             <div class="card card-green">
@@ -536,6 +672,73 @@
                 </table>
             </div>
         </div>
+        </div> <!-- end #tab-overview -->
+
+        <!-- ══ TAB: Carbon Insights ════════════════════════════ -->
+        <div id="tab-carbon" class="tab-panel">
+            <!-- Carbon Summary Cards -->
+            <div class="carbon-summary-grid">
+                <div class="card card-green">
+                    <div class="card-icon green">⚡</div>
+                    <div class="card-label">Current Intensity</div>
+                    <div class="card-value" id="ci-current">—</div>
+                    <div class="card-sub">gCO₂eq/kWh</div>
+                    <div class="carbon-intensity-bar">
+                        <div class="carbon-intensity-fill" id="ci-bar" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="card card-purple">
+                    <div class="card-icon purple">🤖</div>
+                    <div class="card-label">Green Probability (ML)</div>
+                    <div class="card-value" id="ci-prob">—</div>
+                    <div class="card-sub" id="ci-prob-sub">From LightGBM model</div>
+                </div>
+                <div class="card card-blue">
+                    <div class="card-icon blue">🔧</div>
+                    <div class="card-label">Scheduling Engine</div>
+                    <div class="card-value" id="ci-engine" style="font-size:1.1rem;">—</div>
+                    <div class="card-sub" id="ci-action">—</div>
+                </div>
+                <div class="card card-amber">
+                    <div class="card-icon amber">🕐</div>
+                    <div class="card-label">Data from Build</div>
+                    <div class="card-value" id="ci-build" style="font-size:1.4rem;">—</div>
+                    <div class="card-sub" id="ci-recorded">—</div>
+                </div>
+            </div>
+
+            <!-- Carbon Timeline Chart -->
+            <div class="carbon-chart-card">
+                <div class="carbon-chart-header">
+                    <div>
+                        <h3>Carbon Intensity Timeline</h3>
+                        <p>168-hour history (solid) · Short-term forecast (dashed) · Build events (markers)</p>
+                    </div>
+                    <div class="carbon-legend">
+                        <div class="carbon-legend-item">
+                            <div class="legend-line" style="background: #10b981;"></div>
+                            History
+                        </div>
+                        <div class="carbon-legend-item">
+                            <div class="legend-line dashed"></div>
+                            Forecast
+                        </div>
+                        <div class="carbon-legend-item">
+                            <span style="font-size:0.9rem;">🔵</span>
+                            Build triggered
+                        </div>
+                    </div>
+                </div>
+                <div id="carbon-empty" class="carbon-empty" style="display:none;">
+                    <div class="icon">🌿</div>
+                    <h3>No carbon data yet</h3>
+                    <p>Run the optimized pipeline at least once to populate this chart.</p>
+                </div>
+                <div class="carbon-chart-wrap" id="carbon-chart-wrap">
+                    <canvas id="carbonChart"></canvas>
+                </div>
+            </div>
+        </div> <!-- end #tab-carbon -->
     </div>
 
     <script>
@@ -545,6 +748,16 @@
         let durationChart = null;
         let testsChart = null;
         let stageChart = null;
+        let carbonChart = null;
+
+        // ── Tab Switching ─────────────────────────────────────────
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            document.getElementById('tab-btn-' + tab).classList.add('active');
+            if (tab === 'carbon') fetchCarbonData();
+        }
 
         // ── Theme ─────────────────────────────────────────────────
         function toggleTheme() {
@@ -592,6 +805,190 @@
             } catch (err) {
                 console.error('Dashboard fetch error:', err);
             }
+            // Always refresh carbon if that tab is visible
+            if (document.getElementById('tab-carbon').classList.contains('active')) {
+                fetchCarbonData();
+            }
+        }
+
+        // ── Carbon Insights ───────────────────────────────────────
+        async function fetchCarbonData() {
+            try {
+                const [carbonRes, buildsRes] = await Promise.all([
+                    fetch('/api/carbon'),
+                    fetch('/api/builds?pipeline=optimized&limit=20'),
+                ]);
+                const carbon = await carbonRes.json();
+                const builds = await buildsRes.json();
+                renderCarbonChart(carbon, builds);
+            } catch (err) {
+                console.error('Carbon fetch error:', err);
+            }
+        }
+
+        function renderCarbonChart(carbon, builds) {
+            const empty = document.getElementById('carbon-empty');
+            const wrap  = document.getElementById('carbon-chart-wrap');
+
+            if (!carbon.history || carbon.history.length === 0) {
+                empty.style.display = 'block';
+                wrap.style.display  = 'none';
+                return;
+            }
+            empty.style.display = 'none';
+            wrap.style.display  = 'block';
+
+            // ── Update summary cards ─────────────────────────────
+            const meta = carbon.meta || {};
+            const ci = meta.carbon_intensity;
+            document.getElementById('ci-current').textContent =
+                ci != null ? ci.toFixed(1) : '—';
+            // Progress bar: 0 = 80 gCO₂, 100% = 500 gCO₂
+            if (ci != null) {
+                const pct = Math.min(100, Math.max(0, ((ci - 80) / 420) * 100));
+                const fill = document.getElementById('ci-bar');
+                fill.style.width = pct + '%';
+                fill.style.background = ci < 200
+                    ? '#10b981'
+                    : ci < 350 ? '#f59e0b' : '#ef4444';
+            }
+            const prob = meta.green_probability;
+            document.getElementById('ci-prob').textContent =
+                prob != null ? (prob * 100).toFixed(1) + '%' : 'N/A';
+            const eng = meta.scheduling_engine;
+            document.getElementById('ci-engine').textContent =
+                eng === 'lgbm' ? 'LightGBM' : eng === 'rule_based' ? 'Rule-Based' : (eng || '—');
+            const action = meta.scheduling_action;
+            document.getElementById('ci-action').textContent =
+                action === 'execute_now' ? '🍃 Execute now' :
+                action === 'schedule'    ? '🕰️  Delayed build' : (action || '—');
+            document.getElementById('ci-build').textContent =
+                meta.build_number ? '#' + meta.build_number : '—';
+            document.getElementById('ci-recorded').textContent =
+                meta.recorded_at ? new Date(meta.recorded_at).toLocaleString() : '—';
+
+            // ── Build chart data ──────────────────────────────────
+            const tc = getThemeColors();
+            const histLabels = carbon.history.map(h => {
+                const d = new Date(h.timestamp);
+                return d.getHours() + ':00';
+            });
+            const histData = carbon.history.map(h => h.intensity);
+
+            // Forecast labels & data (appended after history)
+            const now = new Date(carbon.history[carbon.history.length - 1].timestamp);
+            const fcastLabels = (carbon.forecast || []).map(f => {
+                const d = new Date(now.getTime() + f.hour * 3600000);
+                return d.getHours() + ':00 (+' + f.hour + 'h)';
+            });
+            const fcastData = (carbon.forecast || []).map(f => f.intensity);
+
+            const allLabels = [...histLabels, ...fcastLabels];
+            const histFull  = [...histData, ...new Array(fcastLabels.length).fill(null)];
+            const fcastFull = [...new Array(histLabels.length - 1).fill(null),
+                               histData[histData.length - 1], // connect at current point
+                               ...fcastData];
+
+            // Build trigger annotations (points where a build was recorded)
+            const buildTimestamps = builds
+                .filter(b => b.carbon_intensity != null && b.created_at)
+                .map(b => ({ ts: new Date(b.created_at), ci: b.carbon_intensity, num: b.build_number }));
+
+            const buildAnnotationData = allLabels.map((lbl, i) => {
+                // Match build events to the closest history label index
+                if (i < histLabels.length) {
+                    const ts = new Date(carbon.history[i].timestamp);
+                    const hit = buildTimestamps.find(b =>
+                        Math.abs(b.ts.getTime() - ts.getTime()) < 3600000
+                    );
+                    return hit ? hit.ci : null;
+                }
+                return null;
+            });
+
+            // ── Draw / update chart ───────────────────────────────
+            if (carbonChart) carbonChart.destroy();
+            const ctx = document.getElementById('carbonChart').getContext('2d');
+            carbonChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allLabels,
+                    datasets: [
+                        {
+                            label: 'History',
+                            data: histFull,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16,185,129,0.08)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: true,
+                            tension: 0.3,
+                            spanGaps: false,
+                        },
+                        {
+                            label: 'Forecast',
+                            data: fcastFull,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245,158,11,0.05)',
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.3,
+                            spanGaps: false,
+                        },
+                        {
+                            label: 'Build triggered',
+                            data: buildAnnotationData,
+                            borderColor: 'transparent',
+                            backgroundColor: '#3b82f6',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointStyle: 'circle',
+                            showLine: false,
+                            fill: false,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e2130',
+                            titleColor: '#e4e6f0',
+                            bodyColor: '#8b8fa3',
+                            borderColor: '#2a2d3a',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: ctx => {
+                                    if (ctx.raw == null) return null;
+                                    if (ctx.dataset.label === 'Build triggered')
+                                        return ' 🔵 Build #' + (buildTimestamps[0]?.num ?? '');
+                                    return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)} gCO₂/kWh`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: tc.ticks,
+                                maxTicksLimit: 24,
+                                maxRotation: 0,
+                            },
+                            grid: { color: tc.grid },
+                        },
+                        y: {
+                            ticks: { color: tc.ticks, callback: v => v + ' g' },
+                            grid: { color: tc.grid },
+                            title: { display: true, text: 'gCO₂eq/kWh', color: tc.ticks },
+                        },
+                    },
+                },
+            });
         }
 
         // ── Summary Cards ─────────────────────────────────────────
