@@ -845,14 +845,18 @@
 
             // ── Build chart data ──────────────────────────────────
             const tc = getThemeColors();
-            const histLabels = carbon.history.map((h, i) => {
+            
+            // Limit to the last 72 hours (3 days) for cleaner visualization
+            const displayHistory = carbon.history ? carbon.history.slice(-72) : [];
+            
+            const histLabels = displayHistory.map((h, i) => {
                 const d = new Date(h.timestamp);
                 if (isNaN(d.getTime())) return h.timestamp;
                 const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                 const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
                 return dateStr + ' ' + timeStr;
             });
-            const histData = carbon.history.map(h => h.intensity);
+            const histData = displayHistory.map(h => h.intensity);
 
             // Forecast labels & data (appended after history)
             const lastHistTs = new Date(carbon.history[carbon.history.length - 1].timestamp);
