@@ -1077,7 +1077,8 @@
                                         const build = datasetIndex === 0 ? unopt[index] : opt[index];
                                         if (!build) return '';
                                         if (build.pipeline_type === 'optimized') {
-                                            return build.affected_modules ? `Modules Built: ${build.affected_modules}` : 'Modules Built: None (Skipped)';
+                                            const built = build.modules_built || build.affected_modules;
+                                            return built ? `Modules Built: ${built}` : 'Modules Built: None (Skipped)';
                                         }
                                         return `Modules Built: All`;
                                     }
