@@ -876,21 +876,25 @@
                                histData[histData.length - 1], // connect at current point
                                ...fcastData];
 
-            // Build trigger annotations (points where a build was recorded)
+            // Build trigger annotations — each build is snapped to its single nearest
+            // history point to avoid the same build showing as multiple dots
+            // (consecutive history points are 1 h apart, so a ±1 h window can match two).
             const buildTimestamps = builds
                 .filter(b => b.carbon_intensity != null && b.created_at)
                 .map(b => ({ ts: new Date(b.created_at), ci: b.carbon_intensity, num: b.build_number }));
 
-            const buildAnnotationData = allLabels.map((lbl, i) => {
-                // Match build events to the closest history label index
-                if (i < histLabels.length) {
-                    const ts = new Date(carbon.history[i].timestamp);
-                    const hit = buildTimestamps.find(b =>
-                        Math.abs(b.ts.getTime() - ts.getTime()) < 3600000
-                    );
-                    return hit ? hit.ci : null;
+            const buildAnnotationData = new Array(allLabels.length).fill(null);
+            buildTimestamps.forEach(b => {
+                let closestIdx = -1;
+                let closestDiff = Infinity;
+                carbon.history.forEach((h, i) => {
+                    const diff = Math.abs(b.ts.getTime() - new Date(h.timestamp).getTime());
+                    if (diff < closestDiff) { closestDiff = diff; closestIdx = i; }
+                });
+                // Only annotate if the build falls within 2 hours of a history point
+                if (closestIdx >= 0 && closestDiff < 7200000) {
+                    buildAnnotationData[closestIdx] = b.ci;
                 }
-                return null;
             });
 
             // ── Draw / update chart ───────────────────────────────
