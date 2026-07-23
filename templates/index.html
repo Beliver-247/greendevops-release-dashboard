@@ -717,10 +717,7 @@
                             <div class="legend-line dashed"></div>
                             Forecast
                         </div>
-                        <div class="carbon-legend-item">
-                            <span style="font-size:0.9rem;">🔵</span>
-                            Build triggered
-                        </div>
+
                     </div>
                 </div>
                 <div id="carbon-empty" class="carbon-empty" style="display:none;">
@@ -804,19 +801,15 @@
         // ── Carbon Insights ───────────────────────────────────────
         async function fetchCarbonData() {
             try {
-                const [carbonRes, buildsRes] = await Promise.all([
-                    fetch('/api/carbon'),
-                    fetch('/api/builds?pipeline=optimized&limit=20'),
-                ]);
+                const carbonRes = await fetch('/api/carbon');
                 const carbon = await carbonRes.json();
-                const builds = await buildsRes.json();
-                renderCarbonChart(carbon, builds);
+                renderCarbonChart(carbon);
             } catch (err) {
                 console.error('Carbon fetch error:', err);
             }
         }
 
-        function renderCarbonChart(carbon, builds) {
+        function renderCarbonChart(carbon) {
             const empty = document.getElementById('carbon-empty');
             const wrap  = document.getElementById('carbon-chart-wrap');
 
@@ -852,12 +845,18 @@
 
             // ── Build chart data ──────────────────────────────────
             const tc = getThemeColors();
-            const histLabels = carbon.history.map(h => {
+            const histLabels = carbon.history.map((h, i) => {
                 const d = new Date(h.timestamp);
-                // Guard against invalid timestamps → show HH:MM
-                return isNaN(d.getTime())
-                    ? h.timestamp
-                    : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                if (isNaN(d.getTime())) return h.timestamp;
+                const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                // Show "Jul 23" prefix on the very first point and whenever the date changes
+                const isFirstPoint = i === 0;
+                const dayChanged = i > 0 && d.getDate() !== new Date(carbon.history[i - 1].timestamp).getDate();
+                if (isFirstPoint || dayChanged) {
+                    const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                    return dateStr + ' ' + timeStr;
+                }
+                return timeStr;
             });
             const histData = carbon.history.map(h => h.intensity);
 
@@ -866,9 +865,12 @@
             const now = isNaN(lastHistTs.getTime()) ? new Date() : lastHistTs;
             const fcastLabels = (carbon.forecast || []).map(f => {
                 const d = new Date(now.getTime() + f.hour * 3600000);
-                return d.getHours() + ':00 (+' + f.hour + 'h)';
+                const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                return dateStr + ' ' + timeStr;
             });
             const fcastData = (carbon.forecast || []).map(f => f.intensity);
+
 
             const allLabels = [...histLabels, ...fcastLabels];
             const histFull  = [...histData, ...new Array(fcastLabels.length).fill(null)];
@@ -876,26 +878,6 @@
                                histData[histData.length - 1], // connect at current point
                                ...fcastData];
 
-            // Build trigger annotations — each build is snapped to its single nearest
-            // history point to avoid the same build showing as multiple dots
-            // (consecutive history points are 1 h apart, so a ±1 h window can match two).
-            const buildTimestamps = builds
-                .filter(b => b.carbon_intensity != null && b.created_at)
-                .map(b => ({ ts: new Date(b.created_at), ci: b.carbon_intensity, num: b.build_number }));
-
-            const buildAnnotationData = new Array(allLabels.length).fill(null);
-            buildTimestamps.forEach(b => {
-                let closestIdx = -1;
-                let closestDiff = Infinity;
-                carbon.history.forEach((h, i) => {
-                    const diff = Math.abs(b.ts.getTime() - new Date(h.timestamp).getTime());
-                    if (diff < closestDiff) { closestDiff = diff; closestIdx = i; }
-                });
-                // Only annotate if the build falls within 2 hours of a history point
-                if (closestIdx >= 0 && closestDiff < 7200000) {
-                    buildAnnotationData[closestIdx] = b.ci;
-                }
-            });
 
             // ── Draw / update chart ───────────────────────────────
             if (carbonChart) carbonChart.destroy();
@@ -927,18 +909,6 @@
                             fill: false,
                             tension: 0.3,
                             spanGaps: false,
-                        },
-                        {
-                            label: 'Build triggered',
-                            data: buildAnnotationData,
-                            borderColor: 'transparent',
-                            backgroundColor: '#3b82f6',
-                            pointRadius: 6,
-                            pointHoverRadius: 8,
-                            pointStyle: 'circle',
-                            showLine: false,
-                            fill: false,
-                        },
                     ],
                 },
                 options: {
@@ -956,8 +926,6 @@
                             callbacks: {
                                 label: ctx => {
                                     if (ctx.raw == null) return null;
-                                    if (ctx.dataset.label === 'Build triggered')
-                                        return ' 🔵 Build #' + (buildTimestamps[0]?.num ?? '');
                                     return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)} gCO₂/kWh`;
                                 },
                             },
