@@ -706,7 +706,7 @@
                 <div class="carbon-chart-header">
                     <div>
                         <h3>Carbon Intensity Timeline</h3>
-                        <p>168-hour history (solid) · Short-term forecast (dashed) · Build events (markers)</p>
+                        <p>168-hour history (solid) · Short-term forecast (dashed)</p>
                     </div>
                     <div class="carbon-legend">
                         <div class="carbon-legend-item">
@@ -849,14 +849,8 @@
                 const d = new Date(h.timestamp);
                 if (isNaN(d.getTime())) return h.timestamp;
                 const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                // Show "Jul 23" prefix on the very first point and whenever the date changes
-                const isFirstPoint = i === 0;
-                const dayChanged = i > 0 && d.getDate() !== new Date(carbon.history[i - 1].timestamp).getDate();
-                if (isFirstPoint || dayChanged) {
-                    const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-                    return dateStr + ' ' + timeStr;
-                }
-                return timeStr;
+                const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                return dateStr + ' ' + timeStr;
             });
             const histData = carbon.history.map(h => h.intensity);
 
