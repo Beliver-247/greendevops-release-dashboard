@@ -694,16 +694,10 @@
                     <div class="card-sub" id="ci-prob-sub">From LightGBM model</div>
                 </div>
                 <div class="card card-blue">
-                    <div class="card-icon blue">🔧</div>
-                    <div class="card-label">Scheduling Engine</div>
-                    <div class="card-value" id="ci-engine" style="font-size:1.1rem;">—</div>
-                    <div class="card-sub" id="ci-action">—</div>
-                </div>
-                <div class="card card-amber">
-                    <div class="card-icon amber">🕐</div>
-                    <div class="card-label">Data from Build</div>
-                    <div class="card-value" id="ci-build" style="font-size:1.4rem;">—</div>
-                    <div class="card-sub" id="ci-recorded">—</div>
+                    <div class="card-icon blue">🌿</div>
+                    <div class="card-label">Scheduling Decision</div>
+                    <div class="card-value" id="ci-action" style="font-size:1.1rem;">—</div>
+                    <div class="card-sub" id="ci-action-sub">Carbon-aware recommendation</div>
                 </div>
             </div>
 
@@ -805,10 +799,6 @@
             } catch (err) {
                 console.error('Dashboard fetch error:', err);
             }
-            // Always refresh carbon if that tab is visible
-            if (document.getElementById('tab-carbon').classList.contains('active')) {
-                fetchCarbonData();
-            }
         }
 
         // ── Carbon Insights ───────────────────────────────────────
@@ -855,28 +845,25 @@
             const prob = meta.green_probability;
             document.getElementById('ci-prob').textContent =
                 prob != null ? (prob * 100).toFixed(1) + '%' : 'N/A';
-            const eng = meta.scheduling_engine;
-            document.getElementById('ci-engine').textContent =
-                eng === 'lgbm' ? 'LightGBM' : eng === 'rule_based' ? 'Rule-Based' : (eng || '—');
             const action = meta.scheduling_action;
             document.getElementById('ci-action').textContent =
                 action === 'execute_now' ? '🍃 Execute now' :
                 action === 'schedule'    ? '🕰️  Delayed build' : (action || '—');
-            document.getElementById('ci-build').textContent =
-                meta.build_number ? '#' + meta.build_number : '—';
-            document.getElementById('ci-recorded').textContent =
-                meta.recorded_at ? new Date(meta.recorded_at).toLocaleString() : '—';
 
             // ── Build chart data ──────────────────────────────────
             const tc = getThemeColors();
             const histLabels = carbon.history.map(h => {
                 const d = new Date(h.timestamp);
-                return d.getHours() + ':00';
+                // Guard against invalid timestamps → show HH:MM
+                return isNaN(d.getTime())
+                    ? h.timestamp
+                    : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
             });
             const histData = carbon.history.map(h => h.intensity);
 
             // Forecast labels & data (appended after history)
-            const now = new Date(carbon.history[carbon.history.length - 1].timestamp);
+            const lastHistTs = new Date(carbon.history[carbon.history.length - 1].timestamp);
+            const now = isNaN(lastHistTs.getTime()) ? new Date() : lastHistTs;
             const fcastLabels = (carbon.forecast || []).map(f => {
                 const d = new Date(now.getTime() + f.hour * 3600000);
                 return d.getHours() + ':00 (+' + f.hour + 'h)';
