@@ -148,8 +148,8 @@ def record_build():
             "green_probability":    data.get("green_probability"),
             "scheduling_action":    data.get("scheduling_action"),
             "scheduling_engine":    data.get("scheduling_engine"),
-            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") else None,
-            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") else None,
+            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") is not None else None,
+            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") is not None else None,
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
@@ -207,8 +207,8 @@ def record_build():
             "green_probability":    data.get("green_probability"),
             "scheduling_action":    data.get("scheduling_action"),
             "scheduling_engine":    data.get("scheduling_engine"),
-            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") else None,
-            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") else None,
+            "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") is not None else None,
+            "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") is not None else None,
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build updated"}), 200
