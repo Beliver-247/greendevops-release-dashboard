@@ -11,6 +11,7 @@ services:
       - dashboard_data_v2:/app/data
     environment:
       - DASHBOARD_DB=/app/data/dashboard.db
+      - TZ=Asia/Colombo
 
 volumes:
   dashboard_data_v2:
