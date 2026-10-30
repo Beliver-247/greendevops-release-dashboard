@@ -64,6 +64,12 @@ def init_db():
         "scheduling_engine TEXT",
         "carbon_history TEXT",
         "carbon_forecast TEXT",
+        "power_method TEXT",
+        "avg_watts REAL",
+        "peak_watts REAL",
+        "energy_wh REAL",
+        "carbon_gco2e REAL",
+        "power_sample_count INTEGER",
     ]:
         try:
             conn.execute(f"ALTER TABLE builds ADD COLUMN {col_def}")
@@ -111,7 +117,8 @@ def record_build():
                 tests_executed, tests_skipped,
                 affected_modules, module_details, build_command, test_command,
                 carbon_intensity, green_probability, scheduling_action, scheduling_engine,
-                carbon_history, carbon_forecast
+                carbon_history, carbon_forecast,
+                power_method, avg_watts, peak_watts, energy_wh, carbon_gco2e, power_sample_count
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -121,7 +128,8 @@ def record_build():
                 :tests_executed, :tests_skipped,
                 :affected_modules, :module_details, :build_command, :test_command,
                 :carbon_intensity, :green_probability, :scheduling_action, :scheduling_engine,
-                :carbon_history, :carbon_forecast
+                :carbon_history, :carbon_forecast,
+                :power_method, :avg_watts, :peak_watts, :energy_wh, :carbon_gco2e, :power_sample_count
             )
         """, {
             "job_name":             data["job_name"],
@@ -150,6 +158,12 @@ def record_build():
             "scheduling_engine":    data.get("scheduling_engine"),
             "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") is not None else None,
             "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") is not None else None,
+            "power_method":         (data.get("power_monitoring") or {}).get("method"),
+            "avg_watts":            (data.get("power_monitoring") or {}).get("avg_watts"),
+            "peak_watts":           (data.get("power_monitoring") or {}).get("peak_watts"),
+            "energy_wh":            (data.get("power_monitoring") or {}).get("energy_wh"),
+            "carbon_gco2e":         (data.get("power_monitoring") or {}).get("carbon_gco2e"),
+            "power_sample_count":   (data.get("power_monitoring") or {}).get("sample_count"),
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
@@ -180,7 +194,13 @@ def record_build():
                 scheduling_action   = COALESCE(:scheduling_action, scheduling_action),
                 scheduling_engine   = COALESCE(:scheduling_engine, scheduling_engine),
                 carbon_history      = COALESCE(:carbon_history, carbon_history),
-                carbon_forecast     = COALESCE(:carbon_forecast, carbon_forecast)
+                carbon_forecast     = COALESCE(:carbon_forecast, carbon_forecast),
+                power_method        = COALESCE(:power_method, power_method),
+                avg_watts           = COALESCE(:avg_watts, avg_watts),
+                peak_watts          = COALESCE(:peak_watts, peak_watts),
+                energy_wh           = COALESCE(:energy_wh, energy_wh),
+                carbon_gco2e        = COALESCE(:carbon_gco2e, carbon_gco2e),
+                power_sample_count  = COALESCE(:power_sample_count, power_sample_count)
             WHERE job_name = :job_name AND build_number = :build_number
         """, {
             "job_name":             data["job_name"],
@@ -209,6 +229,12 @@ def record_build():
             "scheduling_engine":    data.get("scheduling_engine"),
             "carbon_history":       json.dumps(data["carbon_history"]) if data.get("carbon_history") is not None else None,
             "carbon_forecast":      json.dumps(data["carbon_forecast"]) if data.get("carbon_forecast") is not None else None,
+            "power_method":         (data.get("power_monitoring") or {}).get("method"),
+            "avg_watts":            (data.get("power_monitoring") or {}).get("avg_watts"),
+            "peak_watts":           (data.get("power_monitoring") or {}).get("peak_watts"),
+            "energy_wh":            (data.get("power_monitoring") or {}).get("energy_wh"),
+            "carbon_gco2e":         (data.get("power_monitoring") or {}).get("carbon_gco2e"),
+            "power_sample_count":   (data.get("power_monitoring") or {}).get("sample_count"),
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build updated"}), 200
