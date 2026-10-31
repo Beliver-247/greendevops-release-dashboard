@@ -699,6 +699,12 @@
                     <div class="card-value" id="ci-action" style="font-size:1.1rem;">—</div>
                     <div class="card-sub" id="ci-action-sub">Carbon-aware recommendation</div>
                 </div>
+                <div class="card card-green">
+                    <div class="card-icon green">📉</div>
+                    <div class="card-label">Carbon Saved vs Unoptimized</div>
+                    <div class="card-value" id="ci-saved">—</div>
+                    <div class="card-sub" id="ci-saved-sub">Waiting for paired builds</div>
+                </div>
             </div>
 
             <!-- Carbon Timeline Chart -->
@@ -812,6 +818,14 @@
         function renderCarbonChart(carbon) {
             const empty = document.getElementById('carbon-empty');
             const wrap  = document.getElementById('carbon-chart-wrap');
+            const savings = carbon.savings || {};
+            const saved = savings.total_carbon_saved_gco2e;
+            document.getElementById('ci-saved').textContent =
+                saved != null ? `${saved.toFixed(4)} gCO₂e` : '—';
+            document.getElementById('ci-saved-sub').textContent =
+                savings.compared_builds
+                    ? `${savings.compared_builds} optimized build(s) compared`
+                    : 'Waiting for paired builds';
 
             if (!carbon.history || carbon.history.length === 0) {
                 empty.style.display = 'block';
@@ -1315,6 +1329,9 @@
                                         <div style="margin-bottom:0.4rem;"><strong>Engine:</strong> <span class="mono">${b.scheduling_engine || 'N/A'}</span></div>
                                         <div style="margin-bottom:0.4rem;"><strong>Probability:</strong> <span class="mono">${b.green_probability != null ? (b.green_probability * 100).toFixed(1) + '%' : 'N/A'}</span></div>
                                         <div><strong>Action:</strong> <span class="badge ${b.scheduling_action === 'execute_now' ? 'badge-success' : 'badge-unoptimized'}">${b.scheduling_action || 'N/A'}</span></div>
+                                        ${b.pipeline_type === 'optimized' && b.carbon_saved_gco2e != null
+                                            ? `<div style="margin-top:0.4rem;"><strong>Carbon vs baseline:</strong> <span class="mono">${b.carbon_saved_gco2e.toFixed(4)} gCO₂e${b.carbon_savings_pct != null ? ` (${b.carbon_savings_pct.toFixed(1)}%)` : ''}</span></div>`
+                                            : ''}
                                     </div>
                                 </div>
                             </div>

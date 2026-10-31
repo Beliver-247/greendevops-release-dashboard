@@ -70,6 +70,12 @@ def init_db():
         "energy_wh REAL",
         "carbon_gco2e REAL",
         "power_sample_count INTEGER",
+        "carbon_intensity_source TEXT",
+        "carbon_intensity_zone TEXT",
+        "baseline_build_number INTEGER",
+        "baseline_carbon_gco2e REAL",
+        "carbon_saved_gco2e REAL",
+        "carbon_savings_pct REAL",
     ]:
         try:
             conn.execute(f"ALTER TABLE builds ADD COLUMN {col_def}")
@@ -83,6 +89,50 @@ def init_db():
 def row_to_dict(row):
     """Convert a sqlite3.Row to a plain dict."""
     return dict(row) if row else None
+
+
+def attach_baseline(conn, job_name, build_number):
+    """Pair an optimized build with the most recent successful unoptimized run."""
+    optimized = conn.execute("""
+        SELECT carbon_gco2e, created_at
+        FROM builds
+        WHERE job_name = ? AND build_number = ? AND pipeline_type = 'optimized'
+    """, (job_name, build_number)).fetchone()
+    if not optimized or optimized["carbon_gco2e"] is None:
+        return
+
+    baseline = conn.execute("""
+        SELECT build_number, carbon_gco2e
+        FROM builds
+        WHERE pipeline_type = 'unoptimized'
+          AND status = 'SUCCESS'
+          AND carbon_gco2e IS NOT NULL
+          AND created_at <= ?
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+    """, (optimized["created_at"],)).fetchone()
+    if not baseline:
+        return
+
+    baseline_carbon = float(baseline["carbon_gco2e"])
+    actual_carbon = float(optimized["carbon_gco2e"])
+    saved = baseline_carbon - actual_carbon
+    savings_pct = (saved / baseline_carbon * 100.0) if baseline_carbon > 0 else None
+    conn.execute("""
+        UPDATE builds
+        SET baseline_build_number = ?,
+            baseline_carbon_gco2e = ?,
+            carbon_saved_gco2e = ?,
+            carbon_savings_pct = ?
+        WHERE job_name = ? AND build_number = ?
+    """, (
+        baseline["build_number"],
+        baseline_carbon,
+        saved,
+        savings_pct,
+        job_name,
+        build_number,
+    ))
 
 
 # ── API Routes ────────────────────────────────────────────────────────────────
@@ -118,7 +168,9 @@ def record_build():
                 affected_modules, module_details, build_command, test_command,
                 carbon_intensity, green_probability, scheduling_action, scheduling_engine,
                 carbon_history, carbon_forecast,
-                power_method, avg_watts, peak_watts, energy_wh, carbon_gco2e, power_sample_count
+                power_method, avg_watts, peak_watts, energy_wh, carbon_gco2e, power_sample_count,
+                carbon_intensity_source, carbon_intensity_zone,
+                baseline_build_number, baseline_carbon_gco2e, carbon_saved_gco2e, carbon_savings_pct
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -129,7 +181,9 @@ def record_build():
                 :affected_modules, :module_details, :build_command, :test_command,
                 :carbon_intensity, :green_probability, :scheduling_action, :scheduling_engine,
                 :carbon_history, :carbon_forecast,
-                :power_method, :avg_watts, :peak_watts, :energy_wh, :carbon_gco2e, :power_sample_count
+                :power_method, :avg_watts, :peak_watts, :energy_wh, :carbon_gco2e, :power_sample_count,
+                :carbon_intensity_source, :carbon_intensity_zone,
+                :baseline_build_number, :baseline_carbon_gco2e, :carbon_saved_gco2e, :carbon_savings_pct
             )
         """, {
             "job_name":             data["job_name"],
@@ -164,8 +218,17 @@ def record_build():
             "energy_wh":            (data.get("power_monitoring") or {}).get("energy_wh"),
             "carbon_gco2e":         (data.get("power_monitoring") or {}).get("carbon_gco2e"),
             "power_sample_count":   (data.get("power_monitoring") or {}).get("sample_count"),
+            "carbon_intensity_source": data.get("carbon_intensity_source"),
+            "carbon_intensity_zone":   data.get("carbon_intensity_zone"),
+            "baseline_build_number":    data.get("baseline_build_number"),
+            "baseline_carbon_gco2e":    data.get("baseline_carbon_gco2e"),
+            "carbon_saved_gco2e":       data.get("carbon_saved_gco2e"),
+            "carbon_savings_pct":       data.get("carbon_savings_pct"),
         })
         conn.commit()
+        if data["pipeline_type"] == "optimized":
+            attach_baseline(conn, data["job_name"], int(data["build_number"]))
+            conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
     except sqlite3.IntegrityError:
         # Update existing record (e.g., when end data arrives)
@@ -200,7 +263,13 @@ def record_build():
                 peak_watts          = COALESCE(:peak_watts, peak_watts),
                 energy_wh           = COALESCE(:energy_wh, energy_wh),
                 carbon_gco2e        = COALESCE(:carbon_gco2e, carbon_gco2e),
-                power_sample_count  = COALESCE(:power_sample_count, power_sample_count)
+                power_sample_count  = COALESCE(:power_sample_count, power_sample_count),
+                carbon_intensity_source = COALESCE(:carbon_intensity_source, carbon_intensity_source),
+                carbon_intensity_zone = COALESCE(:carbon_intensity_zone, carbon_intensity_zone),
+                baseline_build_number = COALESCE(:baseline_build_number, baseline_build_number),
+                baseline_carbon_gco2e = COALESCE(:baseline_carbon_gco2e, baseline_carbon_gco2e),
+                carbon_saved_gco2e = COALESCE(:carbon_saved_gco2e, carbon_saved_gco2e),
+                carbon_savings_pct = COALESCE(:carbon_savings_pct, carbon_savings_pct)
             WHERE job_name = :job_name AND build_number = :build_number
         """, {
             "job_name":             data["job_name"],
@@ -235,6 +304,12 @@ def record_build():
             "energy_wh":            (data.get("power_monitoring") or {}).get("energy_wh"),
             "carbon_gco2e":         (data.get("power_monitoring") or {}).get("carbon_gco2e"),
             "power_sample_count":   (data.get("power_monitoring") or {}).get("sample_count"),
+            "carbon_intensity_source": data.get("carbon_intensity_source"),
+            "carbon_intensity_zone":   data.get("carbon_intensity_zone"),
+            "baseline_build_number":    data.get("baseline_build_number"),
+            "baseline_carbon_gco2e":    data.get("baseline_carbon_gco2e"),
+            "carbon_saved_gco2e":       data.get("carbon_saved_gco2e"),
+            "carbon_savings_pct":       data.get("carbon_savings_pct"),
         })
         conn.commit()
         return jsonify({"ok": True, "message": "Build updated"}), 200
@@ -256,10 +331,21 @@ def carbon_data():
         ORDER BY created_at DESC
         LIMIT 1
     """).fetchone()
+    savings = conn.execute("""
+        SELECT
+            COUNT(carbon_saved_gco2e) AS compared_builds,
+            COALESCE(SUM(carbon_saved_gco2e), 0) AS total_carbon_saved_gco2e,
+            AVG(carbon_saved_gco2e) AS average_carbon_saved_gco2e
+        FROM builds
+        WHERE pipeline_type = 'optimized'
+          AND status = 'SUCCESS'
+          AND carbon_saved_gco2e IS NOT NULL
+    """).fetchone()
     conn.close()
 
     if not row:
-        return jsonify({"history": [], "forecast": [], "meta": {}})
+        return jsonify({"history": [], "forecast": [], "meta": {},
+                        "savings": row_to_dict(savings)})
 
     history = json.loads(row["carbon_history"]) if row["carbon_history"] else []
     forecast = json.loads(row["carbon_forecast"]) if row["carbon_forecast"] else []
@@ -275,6 +361,7 @@ def carbon_data():
             "build_number": row["build_number"],
             "recorded_at": row["created_at"],
         },
+        "savings": row_to_dict(savings),
     })
 
 
@@ -352,6 +439,16 @@ def stats():
             SUM(tests_skipped)          AS total_tests_skipped
         FROM builds WHERE pipeline_type = 'unoptimized' AND status = 'SUCCESS'
     """).fetchone()
+    carbon = conn.execute("""
+        SELECT
+            COUNT(carbon_saved_gco2e) AS compared_builds,
+            COALESCE(SUM(carbon_saved_gco2e), 0) AS total_carbon_saved_gco2e,
+            AVG(carbon_saved_gco2e) AS average_carbon_saved_gco2e
+        FROM builds
+        WHERE pipeline_type = 'optimized'
+          AND status = 'SUCCESS'
+          AND carbon_saved_gco2e IS NOT NULL
+    """).fetchone()
     conn.close()
 
     opt_d = row_to_dict(opt)
@@ -378,6 +475,7 @@ def stats():
         "time_saved_pct": time_saved_pct,
         "total_tests_skipped": opt_d.get("total_tests_skipped") or 0,
         "energy_saved_kwh": energy_saved_kwh,
+        "carbon_savings": row_to_dict(carbon),
         "total_builds": (opt_d["total_builds"] or 0) + (unopt_d["total_builds"] or 0),
     })
 
