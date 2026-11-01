@@ -73,6 +73,7 @@ def init_db():
         "carbon_intensity_source TEXT",
         "carbon_intensity_zone TEXT",
         "baseline_build_number INTEGER",
+        "parent_build_number INTEGER",
         "baseline_carbon_gco2e REAL",
         "carbon_saved_gco2e REAL",
         "carbon_savings_pct REAL",
@@ -91,8 +92,8 @@ def row_to_dict(row):
     return dict(row) if row else None
 
 
-def attach_baseline(conn, job_name, build_number):
-    """Pair an optimized build with the most recent successful unoptimized run."""
+def attach_baseline(conn, job_name, build_number, requested_baseline=None):
+    """Pair an optimized build with an explicit or latest prior baseline."""
     optimized = conn.execute("""
         SELECT carbon_gco2e, created_at
         FROM builds
@@ -101,16 +102,27 @@ def attach_baseline(conn, job_name, build_number):
     if not optimized or optimized["carbon_gco2e"] is None:
         return
 
-    baseline = conn.execute("""
-        SELECT build_number, carbon_gco2e
-        FROM builds
-        WHERE pipeline_type = 'unoptimized'
-          AND status = 'SUCCESS'
-          AND carbon_gco2e IS NOT NULL
-          AND created_at <= ?
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
-    """, (optimized["created_at"],)).fetchone()
+    if requested_baseline is not None:
+        baseline = conn.execute("""
+            SELECT build_number, carbon_gco2e
+            FROM builds
+            WHERE pipeline_type = 'unoptimized'
+              AND status = 'SUCCESS'
+              AND carbon_gco2e IS NOT NULL
+              AND build_number = ?
+            LIMIT 1
+        """, (requested_baseline,)).fetchone()
+    else:
+        baseline = conn.execute("""
+            SELECT build_number, carbon_gco2e
+            FROM builds
+            WHERE pipeline_type = 'unoptimized'
+              AND status = 'SUCCESS'
+              AND carbon_gco2e IS NOT NULL
+              AND created_at <= ?
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+        """, (optimized["created_at"],)).fetchone()
     if not baseline:
         return
 
@@ -155,6 +167,9 @@ def record_build():
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
+    if data.get("pipeline_type") == "optimized" and data.get("status") == "ABORTED":
+        return jsonify({"ok": True, "message": "Scheduling parent build ignored"}), 200
+
     conn = get_db()
     try:
         conn.execute("""
@@ -170,7 +185,8 @@ def record_build():
                 carbon_history, carbon_forecast,
                 power_method, avg_watts, peak_watts, energy_wh, carbon_gco2e, power_sample_count,
                 carbon_intensity_source, carbon_intensity_zone,
-                baseline_build_number, baseline_carbon_gco2e, carbon_saved_gco2e, carbon_savings_pct
+                baseline_build_number, parent_build_number,
+                baseline_carbon_gco2e, carbon_saved_gco2e, carbon_savings_pct
             ) VALUES (
                 :job_name, :build_number, :pipeline_type,
                 :commit_sha, :commit_message, :status,
@@ -183,7 +199,8 @@ def record_build():
                 :carbon_history, :carbon_forecast,
                 :power_method, :avg_watts, :peak_watts, :energy_wh, :carbon_gco2e, :power_sample_count,
                 :carbon_intensity_source, :carbon_intensity_zone,
-                :baseline_build_number, :baseline_carbon_gco2e, :carbon_saved_gco2e, :carbon_savings_pct
+                :baseline_build_number, :parent_build_number,
+                :baseline_carbon_gco2e, :carbon_saved_gco2e, :carbon_savings_pct
             )
         """, {
             "job_name":             data["job_name"],
@@ -221,13 +238,19 @@ def record_build():
             "carbon_intensity_source": data.get("carbon_intensity_source"),
             "carbon_intensity_zone":   data.get("carbon_intensity_zone"),
             "baseline_build_number":    data.get("baseline_build_number"),
+            "parent_build_number":      data.get("parent_build_number"),
             "baseline_carbon_gco2e":    data.get("baseline_carbon_gco2e"),
             "carbon_saved_gco2e":       data.get("carbon_saved_gco2e"),
             "carbon_savings_pct":       data.get("carbon_savings_pct"),
         })
         conn.commit()
         if data["pipeline_type"] == "optimized":
-            attach_baseline(conn, data["job_name"], int(data["build_number"]))
+            requested_baseline = data.get("baseline_build_number")
+            try:
+                requested_baseline = int(requested_baseline) if requested_baseline is not None else None
+            except (TypeError, ValueError):
+                requested_baseline = None
+            attach_baseline(conn, data["job_name"], int(data["build_number"]), requested_baseline)
             conn.commit()
         return jsonify({"ok": True, "message": "Build recorded"}), 201
     except sqlite3.IntegrityError:
@@ -267,6 +290,7 @@ def record_build():
                 carbon_intensity_source = COALESCE(:carbon_intensity_source, carbon_intensity_source),
                 carbon_intensity_zone = COALESCE(:carbon_intensity_zone, carbon_intensity_zone),
                 baseline_build_number = COALESCE(:baseline_build_number, baseline_build_number),
+                parent_build_number = COALESCE(:parent_build_number, parent_build_number),
                 baseline_carbon_gco2e = COALESCE(:baseline_carbon_gco2e, baseline_carbon_gco2e),
                 carbon_saved_gco2e = COALESCE(:carbon_saved_gco2e, carbon_saved_gco2e),
                 carbon_savings_pct = COALESCE(:carbon_savings_pct, carbon_savings_pct)
@@ -307,6 +331,7 @@ def record_build():
             "carbon_intensity_source": data.get("carbon_intensity_source"),
             "carbon_intensity_zone":   data.get("carbon_intensity_zone"),
             "baseline_build_number":    data.get("baseline_build_number"),
+            "parent_build_number":      data.get("parent_build_number"),
             "baseline_carbon_gco2e":    data.get("baseline_carbon_gco2e"),
             "carbon_saved_gco2e":       data.get("carbon_saved_gco2e"),
             "carbon_savings_pct":       data.get("carbon_savings_pct"),
